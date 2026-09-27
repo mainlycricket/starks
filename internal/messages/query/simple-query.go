@@ -48,7 +48,7 @@ func ReadSimpleQueryResp(_ context.Context, r io.Reader) (*types.SimpleQueryResp
 		case messages.MsgInitState:
 			messageType = b[0]
 			if messageType != 'T' && messageType != 'D' && messageType != 'C' && messageType != 'Z' {
-				return nil, errors.New("invalid first byte")
+				return nil, errors.New("invalid message type")
 			}
 			state, bytesToRead = messages.MsgLengthState, 4
 			data.Reset()

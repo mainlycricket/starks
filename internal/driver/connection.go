@@ -3,8 +3,9 @@ package driver
 import (
 	"context"
 	"database/sql/driver"
-	"log"
 	"net"
+
+	"github.com/mainlycricket/starks/pkg/logger"
 )
 
 type Conn struct {
@@ -26,14 +27,14 @@ func (c *Conn) Begin() (driver.Tx, error) {
 }
 
 func (c *Conn) Ping(ctx context.Context) error {
-	log.Println("Conn Ping invoked")
+	logger.Logger.DebugInfo("Ping invoked")
 
 	if _, err := c.QueryContext(ctx, "SELECT 1;", nil); err != nil {
-		log.Println("error in Conn Ping", "err", err)
+		logger.Logger.DebugError("error in Simple Ping", "err", err)
 		return err
 	}
 
-	log.Println("Conn Ping finished")
+	logger.Logger.DebugInfo("Ping finished")
 
 	return nil
 }

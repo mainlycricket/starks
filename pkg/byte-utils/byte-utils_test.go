@@ -1,6 +1,7 @@
 package byte_utils_test
 
 import (
+	"bytes"
 	"testing"
 
 	byte_utils "github.com/mainlycricket/starks/pkg/byte-utils"
@@ -69,5 +70,31 @@ func TestParseInt16Bytes(t *testing.T) {
 				t.Errorf("ParseInt16Bytes() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGetIntBytesInt16(t *testing.T) {
+	got, err := byte_utils.GetIntBytes(int16(258))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []byte{0x01, 0x02}
+
+	if !bytes.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestGetIntBytesInt32(t *testing.T) {
+	got, err := byte_utils.GetIntBytes(int32(258))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []byte{0x00, 0x00, 0x01, 0x02}
+
+	if !bytes.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }

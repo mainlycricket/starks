@@ -3,11 +3,13 @@ package messages
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
 
 	byte_utils "github.com/mainlycricket/starks/pkg/byte-utils"
+	"github.com/mainlycricket/starks/pkg/logger"
 	"github.com/mainlycricket/starks/pkg/operators"
 )
 
@@ -48,10 +50,12 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 			break
 		}
 		if err != nil {
+			logger.Logger.DebugError("while reading bytes in ReadBackendBytes", err)
 			return nil, err
 		}
 		b = b[:n]
 		if _, err := data.Write(b); err != nil {
+			logger.Logger.DebugError("while appending read bytes in ReadBackendBytes", err)
 			return nil, err
 		}
 
@@ -60,7 +64,8 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 			if b[0] == 'E' {
 				isError = true
 			} else if b[0] != msgType {
-				return nil, errors.New("invalid first byte")
+				logger.Logger.DebugError("invalid first byte in ReadBackendBytes", err)
+				return nil, fmt.Errorf("invalid first byte, expected: %c, got: %c", msgType, b[0])
 			}
 			state, bytesToRead = MsgLengthState, 4
 			data.Reset()
@@ -70,6 +75,7 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 			}
 			messageSize, err := byte_utils.ParseInt32Bytes(data.Bytes())
 			if err != nil {
+				logger.Logger.DebugError("while parsing message length in ReadBackendBytes", err)
 				return nil, err
 			}
 			state, bytesToRead = MsgDataState, int(messageSize)-4

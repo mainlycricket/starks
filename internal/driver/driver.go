@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/mainlycricket/starks/internal/messages/auth"
 	"github.com/mainlycricket/starks/internal/messages/auth/sasl"
 	"github.com/mainlycricket/starks/internal/types"
+	"github.com/mainlycricket/starks/pkg/logger"
 )
 
 func init() {
@@ -22,7 +22,7 @@ type Driver struct {
 }
 
 func (d Driver) Open(connectionString string) (driver.Conn, error) {
-	log.Println("Driver Open invoked")
+	logger.Logger.DebugInfo("Driver Open invoked")
 
 	connectionInfo, err := d.parseConnectionString(connectionString)
 	if err != nil {
@@ -55,7 +55,7 @@ func (d Driver) Open(connectionString string) (driver.Conn, error) {
 	conn.backendProcessId = processId
 	conn.backendKey = backendKey
 
-	log.Println("Driver Open finished")
+	logger.Logger.DebugInfo("Driver Open finished")
 	return conn, nil
 }
 
