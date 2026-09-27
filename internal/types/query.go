@@ -9,4 +9,5 @@ type ExtenededQueryRespData struct {
 	RowDescriptionBytes  []byte
 	DataRowBytes         [][]byte
 	ParameterDescription []byte
+	CommandCompleteData  []byte
 }

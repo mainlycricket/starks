@@ -260,6 +260,8 @@ func readDataRows(_ context.Context, r io.Reader) (*types.ExtenededQueryRespData
 					res.RowDescriptionBytes = payload
 				case 'D':
 					res.DataRowBytes = append(res.DataRowBytes, payload)
+				case 'C':
+					res.CommandCompleteData = payload
 				case 't':
 					res.ParameterDescription = payload
 				}

@@ -5,14 +5,20 @@ import (
 	"database/sql/driver"
 
 	"github.com/mainlycricket/starks/internal/messages/query"
+	"github.com/mainlycricket/starks/pkg/logger"
 )
 
-func (c *Conn) Query(q string, args []driver.NamedValue) (driver.Rows, error) {
-	return c.doSimpleQuery(context.Background(), q)
-}
-
 func (c *Conn) QueryContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Rows, error) {
-	return c.doExtendedQuery(ctx, q, args)
+	logger.Logger.DebugInfo("Context Query invoked")
+
+	rows, err := c.doExtendedQuery(ctx, q, args)
+	if err != nil {
+		logger.Logger.DebugError("error in Context Query", err)
+	}
+
+	logger.Logger.DebugInfo("Context Query finished")
+
+	return rows, nil
 }
 
 func (c *Conn) doExtendedQuery(ctx context.Context, q string, args []driver.NamedValue) (driver.Rows, error) {
