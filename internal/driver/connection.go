@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql/driver"
 	"net"
+	"strconv"
+	"sync/atomic"
 
+	"github.com/mainlycricket/starks/internal/messages/query"
 	"github.com/mainlycricket/starks/pkg/logger"
 )
 
@@ -12,10 +15,27 @@ type Conn struct {
 	connection       net.Conn
 	backendKey       []byte
 	backendProcessId int32
+	statementCounter atomic.Uint64
+	portalCounter    *atomic.Uint64
 }
 
-func (c *Conn) Prepare(query string) (driver.Stmt, error) {
-	return &Stmt{}, nil
+func (c *Conn) Prepare(q string) (driver.Stmt, error) {
+	return c.PrepareContext(context.Background(), q)
+}
+
+func (c *Conn) PrepareContext(ctx context.Context, q string) (driver.Stmt, error) {
+	statementNum := c.statementCounter.Add(1)
+	statementName := strconv.FormatUint(statementNum, 10)
+
+	if err := query.PrepareStatement(ctx, c.connection, q, statementName); err != nil {
+		return nil, err
+	}
+
+	return &Stmt{
+		statementName: statementName,
+		portalCounter: c.portalCounter,
+		c:             c.connection,
+	}, nil
 }
 
 func (c *Conn) Close() error {

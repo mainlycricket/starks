@@ -32,7 +32,10 @@ func main() {
 
 	doReadTests()
 
-	doWriteTests()
+	// doWriteTests()
+
+	// doStatementTest()
+
 }
 
 func doReadTests() {
@@ -40,7 +43,7 @@ func doReadTests() {
 		log.Fatalf("error while simple select query: %v", err)
 	}
 
-	if err := contextSelectQuery(); err != nil {
+	if err := argsSelectQuery(); err != nil {
 		log.Fatalf("error while context select query: %v", err)
 	}
 
@@ -48,8 +51,12 @@ func doReadTests() {
 		log.Fatalf("error while simple select row query: %v", err)
 	}
 
-	if err := contextSelectRowQuery(); err != nil {
+	if err := argsSelectRowQuery(); err != nil {
 		log.Fatalf("error while context select row query: %v", err)
+	}
+
+	if err := multipleResSelectQuery(); err != nil {
+		log.Fatalf("error while multiple select query: %v", err)
 	}
 }
 

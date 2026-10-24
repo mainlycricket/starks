@@ -3,6 +3,8 @@ package driver
 import (
 	"bytes"
 	"strconv"
+
+	"github.com/mainlycricket/starks/pkg/logger"
 )
 
 type Result struct {
@@ -22,6 +24,9 @@ func (r *Result) RowsAffected() (int64, error) {
 func newResult(commandCompleteData []byte) *Result {
 	commandCompleteData = bytes.TrimSuffix(commandCompleteData, []byte{0})
 	parts := bytes.Split(commandCompleteData, []byte{32})
+
+	logger.Logger.DebugInfo("parts", parts)
+
 	tag := string(parts[0])
 
 	var valueString string

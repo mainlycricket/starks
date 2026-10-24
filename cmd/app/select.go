@@ -11,8 +11,8 @@ type House struct {
 }
 
 func simpleSelectQuery() error {
-	query := "SELECT id, name FROM houses WHERE id = $1 OR id = $2;"
-	res, err := DB.Query(query, 1, 2)
+	query := "SELECT id, name FROM houses WHERE id > 0;"
+	res, err := DB.Query(query)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,47 @@ func simpleSelectQuery() error {
 	return nil
 }
 
-func contextSelectQuery() error {
+func multipleResSelectQuery() error {
+	q := `SELECT * FROM houses WHERE id >= 5; SELECT * FROM houses WHERE id <= 4;`
+
+	rows, err := DB.QueryContext(context.Background(), q)
+	if err != nil {
+		return err
+	}
+
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for {
+		columns, err := rows.Columns()
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("column names in result set", columns)
+
+		var houses []House
+
+		for rows.Next() {
+			var house House
+			if err := rows.Scan(&house.Id, &house.Name); err != nil {
+				return err
+			}
+			houses = append(houses, house)
+		}
+
+		fmt.Println("data in result set", houses)
+
+		if !rows.NextResultSet() {
+			break
+		}
+	}
+
+	return nil
+}
+
+func argsSelectQuery() error {
 	query := "SELECT id, name FROM houses WHERE id = $1 OR id = $2;"
 
 	res, err := DB.QueryContext(context.Background(), query, 1, 2)
@@ -82,8 +122,8 @@ func contextSelectQuery() error {
 }
 
 func simpleSelectRowQuery() error {
-	query := "SELECT id, name FROM houses WHERE id = $1;"
-	row := DB.QueryRow(query, 1)
+	query := "SELECT id, name FROM houses WHERE id = 4;"
+	row := DB.QueryRow(query)
 
 	if err := row.Err(); err != nil {
 		return err
@@ -99,10 +139,10 @@ func simpleSelectRowQuery() error {
 	return nil
 }
 
-func contextSelectRowQuery() error {
+func argsSelectRowQuery() error {
 	query := "SELECT id, name FROM houses WHERE id = $1;"
 
-	row := DB.QueryRowContext(context.Background(), query, 1)
+	row := DB.QueryRowContext(context.Background(), query, 3)
 
 	var house House
 	if err := row.Scan(&house.Id, &house.Name); err != nil {

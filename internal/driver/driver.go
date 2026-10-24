@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/mainlycricket/starks/internal/messages/auth"
 	"github.com/mainlycricket/starks/internal/messages/auth/sasl"
@@ -36,7 +37,8 @@ func (d Driver) Open(connectionString string) (driver.Conn, error) {
 	}
 
 	conn := &Conn{
-		connection: c,
+		connection:    c,
+		portalCounter: &atomic.Uint64{},
 	}
 
 	if err := auth.WriteStartupMessage(conn.connection, connectionInfo); err != nil {

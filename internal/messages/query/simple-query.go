@@ -29,6 +29,7 @@ func ReadSimpleQueryResp(_ context.Context, r io.Reader) (*types.SimpleQueryResp
 	var messageType byte
 	data := &bytes.Buffer{}
 	res := &types.SimpleQueryRespData{}
+	resultSetIdx := -1
 
 	for state != messages.MsgDoneState {
 		b := make([]byte, bytesToRead)
@@ -68,9 +69,11 @@ func ReadSimpleQueryResp(_ context.Context, r io.Reader) (*types.SimpleQueryResp
 				b := slices.Clone(data.Bytes())
 				switch messageType {
 				case 'T':
-					res.RowDescriptionBytes = b
+					res.ResultSets = append(res.ResultSets, types.SimpleQueryResultSet{})
+					resultSetIdx++
+					res.ResultSets[resultSetIdx].RowDescriptionBytes = b
 				case 'D':
-					res.DataRowBytes = append(res.DataRowBytes, b)
+					res.ResultSets[resultSetIdx].DataRowBytes = append(res.ResultSets[resultSetIdx].DataRowBytes, b)
 				}
 				bytesToRead = operators.Ternary(messageType == 'Z', 0, 1)
 				state = operators.Ternary(messageType == 'Z', messages.MsgDoneState, messages.MsgInitState)

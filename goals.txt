@@ -1,0 +1,41 @@
+create database
+drop database
+create schema
+drop schema
+create sequence
+create view
+drop view
+create materialized view
+create table
+create table as
+drop table
+truncate table
+alter table rename to
+alter table add column
+alter table drop column
+alter table add constraint
+alter table alter column set data type
+alter table alter column set data type using 
+alter table alter column add check 
+alter table alter column set default
+alter table alter column set null / not null
+alter table rename column 
+create index
+drop index
+select
+select into
+insert into table
+insert into table returning
+update table
+update table returning
+delete from table
+delete from table returning
+merge
+fetch
+copy
+
+// transaction commands will be covered in next phase
+begin
+commit
+rollback
+move 

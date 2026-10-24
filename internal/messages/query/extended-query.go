@@ -15,19 +15,19 @@ import (
 )
 
 func WriteExtendedQuery(ctx context.Context, w io.Writer, query string, args []driver.NamedValue) error {
-	if err := writeParseCommand(ctx, w, query); err != nil {
+	if err := writeParseCommand(ctx, w, query, ""); err != nil {
 		return err
 	}
 
-	if err := writeBindCommand(ctx, w, args); err != nil {
+	if err := writeBindCommand(ctx, w, "", "", args); err != nil {
 		return err
 	}
 
-	if err := writeDescribeCommand(ctx, w); err != nil {
+	if err := writeDescribeCommand(ctx, w, ""); err != nil {
 		return err
 	}
 
-	if err := writeExecuteCommand(ctx, w); err != nil {
+	if err := writeExecuteCommand(ctx, w, ""); err != nil {
 		return err
 	}
 
@@ -47,13 +47,13 @@ func ReadExtendedQueryResp(ctx context.Context, r io.Reader) (*types.ExtenededQu
 		return nil, err
 	}
 
-	return readDataRows(ctx, r)
+	return readExecResponse(ctx, r)
 }
 
-func writeParseCommand(_ context.Context, w io.Writer, query string) error {
+func writeParseCommand(_ context.Context, w io.Writer, query, statementName string) error {
 	logger.Logger.DebugInfo("writeParseCommand invoked")
 
-	stmtName := byte_utils.GetTerminatedBytes("")
+	stmtName := byte_utils.GetTerminatedBytes(statementName)
 	queryBytes := byte_utils.GetTerminatedBytes(query)
 	prmtrTypesBytes, err := byte_utils.GetIntBytes(int16(0))
 	if err != nil {
@@ -81,11 +81,11 @@ func writeParseCommand(_ context.Context, w io.Writer, query string) error {
 	return nil
 }
 
-func writeBindCommand(_ context.Context, w io.Writer, args []driver.NamedValue) error {
+func writeBindCommand(_ context.Context, w io.Writer, statementName, portalName string, args []driver.NamedValue) error {
 	logger.Logger.DebugInfo("writeBindCommand invoked")
 
-	destinationPortalBytes := byte_utils.GetTerminatedBytes("")
-	stmtNameBytes := byte_utils.GetTerminatedBytes("")
+	destinationPortalBytes := byte_utils.GetTerminatedBytes(portalName)
+	stmtNameBytes := byte_utils.GetTerminatedBytes(statementName)
 	prmtrFmtCodeBytes, _ := byte_utils.GetIntBytes(int16(0))
 
 	prmtrCountBytes, _ := byte_utils.GetIntBytes(int16(len(args)))
@@ -124,12 +124,12 @@ func writeBindCommand(_ context.Context, w io.Writer, args []driver.NamedValue) 
 	return nil
 }
 
-func writeDescribeCommand(_ context.Context, w io.Writer) error {
+func writeDescribeCommand(_ context.Context, w io.Writer, statementName string) error {
 	logger.Logger.DebugInfo("writeDescribeCommand invoked")
 
 	typeBytes := []byte{'S'}
-	statementName := byte_utils.GetTerminatedBytes("")
-	payloadBytes := bytes.Join([][]byte{typeBytes, statementName}, nil)
+	statementBytes := byte_utils.GetTerminatedBytes(statementName)
+	payloadBytes := bytes.Join([][]byte{typeBytes, statementBytes}, nil)
 
 	msgBytes, err := messages.PrepareFrontendBytes('D', payloadBytes)
 	if err != nil {
@@ -147,10 +147,10 @@ func writeDescribeCommand(_ context.Context, w io.Writer) error {
 	return nil
 }
 
-func writeExecuteCommand(_ context.Context, w io.Writer) error {
+func writeExecuteCommand(_ context.Context, w io.Writer, portalName string) error {
 	logger.Logger.DebugInfo("writeExecuteCommand invoked")
 
-	portalBytes := byte_utils.GetTerminatedBytes("")
+	portalBytes := byte_utils.GetTerminatedBytes(portalName)
 	rowCountBytes, _ := byte_utils.GetIntBytes(int32(0))
 	data := bytes.Join([][]byte{portalBytes, rowCountBytes}, nil)
 	msgBytes, err := messages.PrepareFrontendBytes('E', data)
@@ -211,7 +211,19 @@ func readBindResponse(_ context.Context, r io.Reader) error {
 	return nil
 }
 
-func readDataRows(_ context.Context, r io.Reader) (*types.ExtenededQueryRespData, error) {
+func readSyncResponse(_ context.Context, r io.Reader) error {
+	logger.Logger.DebugInfo("readSyncResponse invoked")
+
+	if _, err := messages.ReadBackendBytes(r, 'Z'); err != nil {
+		logger.Logger.DebugError("while readSyncResponse", err)
+		return err
+	}
+
+	logger.Logger.DebugInfo("readSyncResponse finished")
+	return nil
+}
+
+func readExecResponse(_ context.Context, r io.Reader) (*types.ExtenededQueryRespData, error) {
 	state, bytesToRead := messages.MsgInitState, 1
 	var messageType byte
 	data := &bytes.Buffer{}
@@ -264,6 +276,8 @@ func readDataRows(_ context.Context, r io.Reader) (*types.ExtenededQueryRespData
 					res.CommandCompleteData = payload
 				case 't':
 					res.ParameterDescription = payload
+				case 'E':
+					res.Error = payload
 				}
 
 				state = operators.Ternary(messageType == 'Z', messages.MsgDoneState, messages.MsgInitState)
@@ -271,6 +285,10 @@ func readDataRows(_ context.Context, r io.Reader) (*types.ExtenededQueryRespData
 				data.Reset()
 			}
 		}
+	}
+
+	if len(res.Error) > 0 {
+		return nil, messages.PrepareError(res.Error)
 	}
 
 	return res, nil

@@ -87,7 +87,7 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 	}
 
 	if isError {
-		err := prepareError(data.Bytes())
+		err := PrepareError(data.Bytes())
 		return nil, err
 	}
 
@@ -95,7 +95,7 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 }
 
 // TODO: analyze / classify / structure / prettify error
-func prepareError(errBytes []byte) error {
+func PrepareError(errBytes []byte) error {
 	if len(errBytes) == 1 || errBytes[0] == '0' {
 		return errors.New("something went wrong")
 	}

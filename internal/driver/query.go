@@ -11,9 +11,20 @@ import (
 func (c *Conn) QueryContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Rows, error) {
 	logger.Logger.DebugInfo("Context Query invoked")
 
-	rows, err := c.doExtendedQuery(ctx, q, args)
+	var (
+		rows driver.Rows
+		err  error
+	)
+
+	if len(args) == 0 {
+		rows, err = c.doSimpleQuery(ctx, q)
+	} else {
+		rows, err = c.doExtendedQuery(ctx, q, args)
+	}
+
 	if err != nil {
 		logger.Logger.DebugError("error in Context Query", err)
+		return nil, err
 	}
 
 	logger.Logger.DebugInfo("Context Query finished")
@@ -32,8 +43,12 @@ func (c *Conn) doExtendedQuery(ctx context.Context, q string, args []driver.Name
 	}
 
 	rows := &Rows{
-		rowDescriptionBytes: res.RowDescriptionBytes,
-		dataRowBytes:        res.DataRowBytes,
+		resultSets: []RowsResultSet{
+			{
+				rowDescriptionBytes: res.RowDescriptionBytes,
+				dataRowBytes:        res.DataRowBytes,
+			},
+		},
 	}
 
 	return rows, nil
@@ -49,9 +64,16 @@ func (c *Conn) doSimpleQuery(ctx context.Context, q string) (driver.Rows, error)
 		return nil, err
 	}
 
+	resultSets := make([]RowsResultSet, 0, len(res.ResultSets))
+	for _, r := range res.ResultSets {
+		resultSets = append(resultSets, RowsResultSet{
+			rowDescriptionBytes: r.RowDescriptionBytes,
+			dataRowBytes:        r.DataRowBytes,
+		})
+	}
+
 	rows := &Rows{
-		rowDescriptionBytes: res.RowDescriptionBytes,
-		dataRowBytes:        res.DataRowBytes,
+		resultSets: resultSets,
 	}
 
 	return rows, nil

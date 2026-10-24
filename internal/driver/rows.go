@@ -2,25 +2,33 @@ package driver
 
 import (
 	"database/sql/driver"
-	"errors"
+	"io"
 
 	byte_utils "github.com/mainlycricket/starks/pkg/byte-utils"
 	"github.com/mainlycricket/starks/pkg/operators"
 )
 
 type Rows struct {
+	resultSetIdx int
+	resultSets   []RowsResultSet
+	rsFlag       bool
+}
+
+type RowsResultSet struct {
 	rowDescriptionBytes []byte
 	dataRowBytes        [][]byte
 	rowIdx              int
 }
 
 func (r *Rows) Columns() []string {
-	count, _ := byte_utils.ParseInt16Bytes(r.rowDescriptionBytes[:2])
+	resultSet := &r.resultSets[r.resultSetIdx]
+
+	count, _ := byte_utils.ParseInt16Bytes(resultSet.rowDescriptionBytes[:2])
 	columns := make([]string, 0, count)
 
 	var columnName []byte
-	for idx := 2; idx < len(r.rowDescriptionBytes); {
-		b := r.rowDescriptionBytes[idx]
+	for idx := 2; idx < len(resultSet.rowDescriptionBytes); {
+		b := resultSet.rowDescriptionBytes[idx]
 		if b == 0 {
 			columns = append(columns, string(columnName))
 			idx += 19
@@ -38,12 +46,27 @@ func (r *Rows) Close() error {
 	return nil
 }
 
-func (r *Rows) Next(dest []driver.Value) error {
-	if len(r.dataRowBytes) == r.rowIdx {
-		return errors.New("end of rows")
+func (r *Rows) HasNextResultSet() bool {
+	return len(r.resultSets) > r.resultSetIdx
+}
+
+func (r *Rows) NextResultSet() error {
+	if r.HasNextResultSet() {
+		return nil
 	}
 
-	rowBytes := r.dataRowBytes[r.rowIdx]
+	return io.EOF
+}
+
+func (r *Rows) Next(dest []driver.Value) error {
+	resultSet := &r.resultSets[r.resultSetIdx]
+
+	if resultSet.rowIdx >= len(resultSet.dataRowBytes) {
+		r.resultSetIdx++
+		return io.EOF
+	}
+
+	rowBytes := resultSet.dataRowBytes[resultSet.rowIdx]
 	var bytesCounter int
 
 	count, _ := byte_utils.ParseInt16Bytes(rowBytes[:2])
@@ -60,7 +83,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 		bytesCounter += operators.Ternary(dataLen > 0, int(dataLen), 0)
 	}
 
-	r.rowIdx++
+	resultSet.rowIdx++
 
 	return nil
 }
