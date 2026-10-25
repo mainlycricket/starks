@@ -38,7 +38,28 @@ func WriteExtendedQuery(ctx context.Context, w io.Writer, query string, args []d
 	return nil
 }
 
-func ReadExtendedQueryResp(ctx context.Context, r io.Reader) (*types.ExtenededQueryRespData, error) {
+func ReadExtendedQueryResp(ctx context.Context, r io.Reader) ([]byte, error) {
+	if err := readParseResponse(ctx, r); err != nil {
+		return nil, err
+	}
+
+	if err := readBindResponse(ctx, r); err != nil {
+		return nil, err
+	}
+
+	if _, err := messages.ReadBackendMessageByType(r, 't'); err != nil {
+		return nil, err
+	}
+
+	data, err := messages.ReadBackendMessageByType(r, 'T')
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func ReadExtendedExecResp(ctx context.Context, r io.Reader) (*types.ExtenededQueryRespData, error) {
 	if err := readParseResponse(ctx, r); err != nil {
 		return nil, err
 	}
@@ -190,7 +211,7 @@ func writeSyncCommand(_ context.Context, w io.Writer) error {
 func readParseResponse(_ context.Context, r io.Reader) error {
 	logger.Logger.DebugInfo("readParseResponse invoked")
 
-	if _, err := messages.ReadBackendBytes(r, '1'); err != nil {
+	if _, err := messages.ReadBackendMessageByType(r, '1'); err != nil {
 		logger.Logger.DebugError("while readParseResponse", err)
 		return err
 	}
@@ -202,7 +223,7 @@ func readParseResponse(_ context.Context, r io.Reader) error {
 func readBindResponse(_ context.Context, r io.Reader) error {
 	logger.Logger.DebugInfo("readBindResponse invoked")
 
-	if _, err := messages.ReadBackendBytes(r, '2'); err != nil {
+	if _, err := messages.ReadBackendMessageByType(r, '2'); err != nil {
 		logger.Logger.DebugError("while readBindResponse", err)
 		return err
 	}
@@ -214,7 +235,7 @@ func readBindResponse(_ context.Context, r io.Reader) error {
 func readSyncResponse(_ context.Context, r io.Reader) error {
 	logger.Logger.DebugInfo("readSyncResponse invoked")
 
-	if _, err := messages.ReadBackendBytes(r, 'Z'); err != nil {
+	if _, err := messages.ReadBackendMessageByType(r, 'Z'); err != nil {
 		logger.Logger.DebugError("while readSyncResponse", err)
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"net"
 	"strconv"
+	"sync"
 	"sync/atomic"
 
 	"github.com/mainlycricket/starks/internal/messages/query"
@@ -12,6 +13,7 @@ import (
 )
 
 type Conn struct {
+	lock             sync.Locker
 	connection       net.Conn
 	backendKey       []byte
 	backendProcessId int32
@@ -24,6 +26,9 @@ func (c *Conn) Prepare(q string) (driver.Stmt, error) {
 }
 
 func (c *Conn) PrepareContext(ctx context.Context, q string) (driver.Stmt, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	statementNum := c.statementCounter.Add(1)
 	statementName := strconv.FormatUint(statementNum, 10)
 
@@ -35,11 +40,12 @@ func (c *Conn) PrepareContext(ctx context.Context, q string) (driver.Stmt, error
 		statementName: statementName,
 		portalCounter: c.portalCounter,
 		c:             c.connection,
+		lock:          c.lock,
 	}, nil
 }
 
 func (c *Conn) Close() error {
-	return nil
+	return c.connection.Close()
 }
 
 func (c *Conn) Begin() (driver.Tx, error) {
@@ -49,10 +55,12 @@ func (c *Conn) Begin() (driver.Tx, error) {
 func (c *Conn) Ping(ctx context.Context) error {
 	logger.Logger.DebugInfo("Ping invoked")
 
-	if _, err := c.QueryContext(ctx, "SELECT 1;", nil); err != nil {
+	rows, err := c.QueryContext(ctx, "SELECT 1;", nil)
+	if err != nil {
 		logger.Logger.DebugError("error in Simple Ping", "err", err)
 		return err
 	}
+	defer rows.Close()
 
 	logger.Logger.DebugInfo("Ping finished")
 

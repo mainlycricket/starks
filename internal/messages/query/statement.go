@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"io"
 
+	"github.com/mainlycricket/starks/internal/messages"
 	"github.com/mainlycricket/starks/internal/types"
 	"github.com/mainlycricket/starks/pkg/logger"
 )
@@ -77,4 +78,21 @@ func ReadExecStmtResp(ctx context.Context, r io.ReadWriter) (*types.ExtenededQue
 	}
 
 	return readExecResponse(ctx, r)
+}
+
+func ReadStmtQueryResp(ctx context.Context, r io.ReadWriter) ([]byte, error) {
+	if err := readBindResponse(ctx, r); err != nil {
+		return nil, err
+	}
+
+	if _, err := messages.ReadBackendMessageByType(r, 't'); err != nil {
+		return nil, err
+	}
+
+	data, err := messages.ReadBackendMessageByType(r, 'T')
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

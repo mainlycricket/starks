@@ -38,10 +38,10 @@ func PrepareFrontendBytes(msgType byte, data []byte) ([]byte, error) {
 	return resp.Bytes(), nil
 }
 
-func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
+func ReadBackendMessage(r io.Reader) (byte, []byte, error) {
 	state, bytesToRead := MsgInitState, 1
 	data := &bytes.Buffer{}
-	var isError bool
+	var messageType byte
 
 	for state != MsgDoneState {
 		b := make([]byte, bytesToRead)
@@ -50,23 +50,18 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 			break
 		}
 		if err != nil {
-			logger.Logger.DebugError("while reading bytes in ReadBackendBytes", err)
-			return nil, err
+			logger.Logger.DebugError("while reading bytes in ReadBackendMessage", err)
+			return 0, nil, err
 		}
 		b = b[:n]
 		if _, err := data.Write(b); err != nil {
-			logger.Logger.DebugError("while appending read bytes in ReadBackendBytes", err)
-			return nil, err
+			logger.Logger.DebugError("while appending read bytes in ReadBackendMessage", err)
+			return 0, nil, err
 		}
 
 		switch state {
 		case MsgInitState:
-			if b[0] == 'E' {
-				isError = true
-			} else if b[0] != msgType {
-				logger.Logger.DebugError("invalid first byte in ReadBackendBytes", err)
-				return nil, fmt.Errorf("invalid first byte, expected: %c, got: %c", msgType, b[0])
-			}
+			messageType = b[0]
 			state, bytesToRead = MsgLengthState, 4
 			data.Reset()
 		case MsgLengthState:
@@ -76,7 +71,7 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 			messageSize, err := byte_utils.ParseInt32Bytes(data.Bytes())
 			if err != nil {
 				logger.Logger.DebugError("while parsing message length in ReadBackendBytes", err)
-				return nil, err
+				return 0, nil, err
 			}
 			state, bytesToRead = MsgDataState, int(messageSize)-4
 			data.Reset()
@@ -86,12 +81,24 @@ func ReadBackendBytes(r io.Reader, msgType byte) ([]byte, error) {
 		}
 	}
 
-	if isError {
-		err := PrepareError(data.Bytes())
+	return messageType, slices.Clone(data.Bytes()), nil
+}
+
+func ReadBackendMessageByType(r io.Reader, msgType byte) ([]byte, error) {
+	receivedMsgType, data, err := ReadBackendMessage(r)
+	if err != nil {
 		return nil, err
 	}
 
-	return slices.Clone(data.Bytes()), nil
+	switch receivedMsgType {
+	case msgType:
+		return data, nil
+	case 'E':
+		err := PrepareError(data)
+		return nil, err
+	default:
+		return nil, fmt.Errorf("invalid first byte, expected: %c, got: %c", msgType, receivedMsgType)
+	}
 }
 
 // TODO: analyze / classify / structure / prettify error

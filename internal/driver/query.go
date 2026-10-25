@@ -4,12 +4,16 @@ import (
 	"context"
 	"database/sql/driver"
 
+	"github.com/mainlycricket/starks/internal/messages"
 	"github.com/mainlycricket/starks/internal/messages/query"
 	"github.com/mainlycricket/starks/pkg/logger"
 )
 
 func (c *Conn) QueryContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Rows, error) {
 	logger.Logger.DebugInfo("Context Query invoked")
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	var (
 		rows driver.Rows
@@ -37,21 +41,16 @@ func (c *Conn) doExtendedQuery(ctx context.Context, q string, args []driver.Name
 		return nil, err
 	}
 
-	res, err := query.ReadExtendedQueryResp(ctx, c.connection)
+	rowDesc, err := query.ReadExtendedQueryResp(ctx, c.connection)
 	if err != nil {
 		return nil, err
 	}
 
-	rows := &Rows{
-		resultSets: []RowsResultSet{
-			{
-				rowDescriptionBytes: res.RowDescriptionBytes,
-				dataRowBytes:        res.DataRowBytes,
-			},
-		},
-	}
-
-	return rows, nil
+	return &Rows{
+		c:                   c.connection,
+		rowDescriptionBytes: rowDesc,
+		lock:                c.lock,
+	}, nil
 }
 
 func (c *Conn) doSimpleQuery(ctx context.Context, q string) (driver.Rows, error) {
@@ -59,22 +58,14 @@ func (c *Conn) doSimpleQuery(ctx context.Context, q string) (driver.Rows, error)
 		return nil, err
 	}
 
-	res, err := query.ReadSimpleQueryResp(ctx, c.connection)
+	data, err := messages.ReadBackendMessageByType(c.connection, 'T')
 	if err != nil {
 		return nil, err
 	}
 
-	resultSets := make([]RowsResultSet, 0, len(res.ResultSets))
-	for _, r := range res.ResultSets {
-		resultSets = append(resultSets, RowsResultSet{
-			rowDescriptionBytes: r.RowDescriptionBytes,
-			dataRowBytes:        r.DataRowBytes,
-		})
-	}
-
-	rows := &Rows{
-		resultSets: resultSets,
-	}
-
-	return rows, nil
+	return &Rows{
+		rowDescriptionBytes: data,
+		c:                   c.connection,
+		lock:                c.lock,
+	}, nil
 }

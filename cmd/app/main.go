@@ -34,7 +34,7 @@ func main() {
 
 	// doWriteTests()
 
-	// doStatementTest()
+	doStatementTest()
 
 }
 

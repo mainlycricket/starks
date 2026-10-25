@@ -16,6 +16,7 @@ func simpleSelectQuery() error {
 	if err != nil {
 		return err
 	}
+	defer res.Close()
 
 	if err := res.Err(); err != nil {
 		return err
@@ -50,6 +51,7 @@ func multipleResSelectQuery() error {
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	if err := rows.Err(); err != nil {
 		return err
@@ -86,10 +88,11 @@ func multipleResSelectQuery() error {
 func argsSelectQuery() error {
 	query := "SELECT id, name FROM houses WHERE id = $1 OR id = $2;"
 
-	res, err := DB.QueryContext(context.Background(), query, 1, 2)
+	res, err := DB.QueryContext(context.Background(), query, 3, 4)
 	if err != nil {
 		return err
 	}
+	defer res.Close()
 
 	if err := res.Err(); err != nil {
 		return err

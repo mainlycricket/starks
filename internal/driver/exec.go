@@ -11,11 +11,14 @@ import (
 func (c *Conn) ExecContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Result, error) {
 	logger.Logger.DebugInfo("ExecContext invoked")
 
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if err := query.WriteExtendedQuery(ctx, c.connection, q, args); err != nil {
 		return nil, err
 	}
 
-	res, err := query.ReadExtendedQueryResp(ctx, c.connection)
+	res, err := query.ReadExtendedExecResp(ctx, c.connection)
 	if err != nil {
 		return nil, err
 	}

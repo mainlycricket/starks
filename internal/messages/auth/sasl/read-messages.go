@@ -11,7 +11,7 @@ import (
 )
 
 func readServerAuthContinueMsg(r io.Reader) (*types.AuthSASLContinueResp, error) {
-	data, err := messages.ReadBackendBytes(r, 'R')
+	data, err := messages.ReadBackendMessageByType(r, 'R')
 
 	resp, err := parseSASLContinueResp(data)
 	if err != nil {
@@ -22,7 +22,7 @@ func readServerAuthContinueMsg(r io.Reader) (*types.AuthSASLContinueResp, error)
 }
 
 func readAuthFinalMessage(r io.Reader, expectedSign []byte) error {
-	data, err := messages.ReadBackendBytes(r, 'R')
+	data, err := messages.ReadBackendMessageByType(r, 'R')
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func readAuthFinalMessage(r io.Reader, expectedSign []byte) error {
 }
 
 func readAuthOkMessage(r io.Reader) error {
-	data, err := messages.ReadBackendBytes(r, 'R')
+	data, err := messages.ReadBackendMessageByType(r, 'R')
 	if err != nil {
 		return err
 	}

@@ -5,13 +5,15 @@ import (
 	"database/sql/driver"
 	"net"
 	"strconv"
+	"sync"
 	"sync/atomic"
 
 	"github.com/mainlycricket/starks/internal/messages/query"
 )
 
 type Stmt struct {
-	c             net.Conn
+	c             net.Conn    // points to the original TCP connection to the database
+	lock          sync.Locker // points to the original lock
 	statementName string
 	portalCounter *atomic.Uint64
 }
@@ -33,6 +35,9 @@ func (s *Stmt) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func (s *Stmt) ExecContext(ctx context.Context, args []driver.Value) (driver.Result, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	portalNumber := s.portalCounter.Add(1)
 	portalNumberStr := strconv.FormatUint(portalNumber, 10)
 
@@ -49,6 +54,9 @@ func (s *Stmt) ExecContext(ctx context.Context, args []driver.Value) (driver.Res
 }
 
 func (s *Stmt) QueryContext(ctx context.Context, args []driver.Value) (driver.Rows, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	portalNumber := s.portalCounter.Add(1)
 	portalNumberStr := strconv.FormatUint(portalNumber, 10)
 
@@ -56,17 +64,14 @@ func (s *Stmt) QueryContext(ctx context.Context, args []driver.Value) (driver.Ro
 		return nil, err
 	}
 
-	resp, err := query.ReadExecStmtResp(ctx, s.c)
+	rowDesc, err := query.ReadStmtQueryResp(ctx, s.c)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Rows{
-		resultSets: []RowsResultSet{
-			{
-				rowDescriptionBytes: resp.RowDescriptionBytes,
-				dataRowBytes:        resp.DataRowBytes,
-			},
-		},
+		rowDescriptionBytes: rowDesc,
+		c:                   s.c,
+		lock:                s.lock,
 	}, nil
 }

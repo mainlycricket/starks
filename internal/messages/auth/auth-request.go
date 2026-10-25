@@ -16,7 +16,7 @@ const (
 )
 
 func ReadAuthReqMessage(r io.Reader) (*types.AuthReqInfo, error) {
-	data, err := messages.ReadBackendBytes(r, 'R')
+	data, err := messages.ReadBackendMessageByType(r, 'R')
 	if err != nil {
 		return nil, err
 	}
